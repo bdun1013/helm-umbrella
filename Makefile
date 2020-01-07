@@ -1,18 +1,57 @@
-HELM_PLUGIN_NAME := umbrella
-LDFLAGS := "-X main.version=${VERSION}"
-MOD_PROXY_URL ?= https://goproxy.io
+PLUGIN_NAME := umbrella
 
 .PHONY: build
-build:
-	export CGO_ENABLED=0 && \
-	go build -o bin/${HELM_PLUGIN_NAME} -ldflags $(LDFLAGS) ./main.go
+build: build_linux build_mac build_windows
 
-.PHONY: bootstrap
-bootstrap:
-	export GO111MODULE=on && \
-	export GOPROXY=$(MOD_PROXY_URL) && \
-	go mod download
+build_windows: export GOARCH=amd64
+build_windows: export GO111MODULE=on
+build_windows: export GOPROXY=https://goproxy.io
+build_windows:
+	@GOOS=windows go build -v --ldflags="-w -X main.version=$(VERSION)" \
+		-o bin/windows/amd64/umbrella main.go  # windows
 
-.PHONY: tag
-tag:
-	@scripts/tag.sh
+link_windows:
+	@cp bin/windows/amd64/umbrella ./bin/umbrella
+
+build_linux: export GOARCH=amd64
+build_linux: export CGO_ENABLED=0
+build_linux: export GO111MODULE=on
+build_linux: export GOPROXY=https://goproxy.io
+build_linux:
+	@GOOS=linux go build -v --ldflags="-w -X main.version=$(VERSION)" \
+		-o bin/linux/amd64/umbrella main.go  # linux
+
+link_linux:
+	@cp bin/linux/amd64/umbrella ./bin/umbrella
+
+build_mac: export GOARCH=amd64
+build_mac: export CGO_ENABLED=0
+build_mac: export GO111MODULE=on
+build_mac: export GOPROXY=https://goproxy.io
+build_mac:
+	@GOOS=darwin go build -v --ldflags="-w -X main.version=$(VERSION)" \
+		-o bin/darwin/amd64/umbrella main.go # mac osx
+	@cp bin/darwin/amd64/umbrella ./bin/umbrella # For use w make install
+
+link_mac:
+	@cp bin/darwin/amd64/umbrella ./bin/umbrella
+
+.PHONY: clean
+clean:
+	@git status --ignored --short | grep '^!! ' | sed 's/!! //' | xargs rm -rf
+
+.PHONY: covhtml
+covhtml:
+	@go tool cover -html=.cover/cover.out
+
+.PHONY: tree
+tree:
+	@tree -I vendor
+
+.PHONY: install
+install:
+	HELM_PUSH_PLUGIN_NO_INSTALL_HOOK=1 helm plugin install $(shell pwd)
+
+.PHONY: remove
+remove:
+	helm plugin remove $(PLUGIN_NAME)
