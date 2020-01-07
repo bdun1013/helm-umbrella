@@ -12,11 +12,11 @@ echo "Downloading and installing helm-umbrella v${version} ..."
 
 url=""
 if [ "$(uname)" = "Darwin" ]; then
-    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_${version}_darwin_amd64.tar.gz"
+    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_v${version}_darwin_amd64.tar.gz"
 elif [ "$(uname)" = "Linux" ] ; then
-    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_${version}_linux_amd64.tar.gz"
+    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_v${version}_linux_amd64.tar.gz"
 else
-    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_${version}_windows_amd64.tar.gz"
+    url="https://github.com/bpdunni/helm-umbrella/releases/download/v${version}/helm-umbrella_$v{version}_windows_amd64.tar.gz"
 fi
 
 echo $url
