@@ -31,5 +31,5 @@ else
     wget -q "${url}" -O "releases/v${version}.tar.gz"
 fi
 tar xzf "releases/v${version}.tar.gz" -C "releases/v${version}"
-mv "releases/v${version}/bin/umbrella" "bin/umbrella" || \
-    mv "releases/v${version}/bin/umbrella.exe" "bin/umbrella"
+mv "releases/v${version}/umbrella" "bin/umbrella" || \
+    mv "releases/v${version}/umbrella.exe" "bin/umbrella"

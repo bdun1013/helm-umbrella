@@ -156,23 +156,38 @@ func lintUmbrellaChart(path string, vals map[string]interface{}, namespace strin
 }
 
 func validateConflictingDependencyVersions(c *chart.Chart) error {
-	metaChan := make(chan *chart.Metadata)
-	metaMap := make(map[string]*chart.Metadata)
+	depChan := make(chan *chart.Chart)
+	// map of chart dep name to a map of version to charts: name -> (version -> charts)
+	depMap := make(map[string]map[string][]*chart.Chart)
 	var wg sync.WaitGroup
 	var errorMessage strings.Builder
 
 	wg.Add(1)
-	go watchChan(metaChan, &wg)
-	go sendChartMetaToChan(c, metaChan, &wg)
+	go func(metaChan chan *chart.Chart, wg *sync.WaitGroup) {
+		wg.Wait()
+		close(metaChan)
+	}(depChan, &wg)
 
-	for meta := range metaChan {
-		if metaMap[meta.Name] == nil {
-			metaMap[meta.Name] = meta
-		} else {
-			version := metaMap[meta.Name].Version
-			if version != meta.Version {
-				fmt.Fprintf(&errorMessage, "Found conflicting versions [%s, %s] of dependent chart %s", version, meta.Version, meta.Name)
-			}
+	go sendChartToChan(c, depChan, &wg)
+
+	for dep := range depChan {
+		depName := dep.Metadata.Name
+		depVersion := dep.Metadata.Version
+
+		if depMap[depName] == nil {
+			depMap[depName] = make(map[string][]*chart.Chart)
+		}
+
+		if depMap[depName][depVersion] == nil {
+			depMap[depName][depVersion] = make([]*chart.Chart, 0)
+		}
+
+		depMap[depName][depVersion] = append(depMap[depName][depVersion], dep)
+	}
+
+	for depName, depVersionMap := range depMap {
+		if len(depVersionMap) > 1 {
+			fmt.Fprintf(&errorMessage, "Conflicting versions of chart %s: %s", depName, formatDepVersionMap(depName, depVersionMap))
 		}
 	}
 
@@ -183,16 +198,28 @@ func validateConflictingDependencyVersions(c *chart.Chart) error {
 	return nil
 }
 
-func watchChan(metaChan chan *chart.Metadata, wg *sync.WaitGroup) {
-	wg.Wait()
-	close(metaChan)
-}
-
-func sendChartMetaToChan(c *chart.Chart, metaChan chan *chart.Metadata, wg *sync.WaitGroup) {
+func sendChartToChan(c *chart.Chart, metaChan chan *chart.Chart, wg *sync.WaitGroup) {
 	defer wg.Done()
-	metaChan <- c.Metadata
+	metaChan <- c
 	for _, dep := range c.Dependencies() {
 		wg.Add(1)
-		go sendChartMetaToChan(dep, metaChan, wg)
+		go sendChartToChan(dep, metaChan, wg)
 	}
+}
+
+func formatDepVersionMap(depName string, depVersionMap map[string][]*chart.Chart) string {
+	depVersionMessages := make([]string, 0)
+
+	for depVersion, charts := range depVersionMap {
+		key := depName + "@" + depVersion
+		chartPaths := make([]string, 0)
+
+		for _, chart := range charts {
+			chartPaths = append(chartPaths, chart.Parent().ChartPath())
+		}
+		depVersionMessages = append(depVersionMessages, fmt.Sprintf("%s in [%s]", key, strings.Join(chartPaths, ", ")))
+	}
+
+	return strings.Join(depVersionMessages, ", ")
+
 }

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: umbrella
+name: application3
 description: A Helm chart for Kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
@@ -19,10 +19,6 @@ version: 0.1.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application.
 appVersion: 1.16.0
-requirements:
-- name: application1
-  version: 0.1.0
-- name: application2
-  version: 0.1.0
-- name: application3
-  version: 0.1.0
+dependencies:
+- name: library1
+  version: 0.2.0
