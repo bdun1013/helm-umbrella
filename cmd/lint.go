@@ -160,7 +160,7 @@ func validateConflictingDependencyVersions(c *chart.Chart) error {
 	// map of chart dep name to a map of version to charts: name -> (version -> charts)
 	depMap := make(map[string]map[string][]*chart.Chart)
 	var wg sync.WaitGroup
-	var errorMessage strings.Builder
+	errorMessages := make([]string, 0)
 
 	wg.Add(1)
 	go func(metaChan chan *chart.Chart, wg *sync.WaitGroup) {
@@ -185,14 +185,22 @@ func validateConflictingDependencyVersions(c *chart.Chart) error {
 		depMap[depName][depVersion] = append(depMap[depName][depVersion], dep)
 	}
 
+	warningCount := 0
 	for depName, depVersionMap := range depMap {
 		if len(depVersionMap) > 1 {
-			fmt.Fprintf(&errorMessage, "Conflicting versions of chart %s: %s", depName, formatDepVersionMap(depName, depVersionMap))
+			warningCount = warningCount + 1
+			errorMessages = append(errorMessages, fmt.Sprintf("(%d) %s has versions %s", warningCount, depName, formatDepVersionMap(depName, depVersionMap)))
 		}
 	}
 
-	if errorMessage.String() != "" {
-		return errors.New(errorMessage.String())
+	if len(errorMessages) > 0 {
+		// var errorMessageFormat string
+		// if len(errorMessages) == 1 {
+		// 	errorMessageFormat = "Conflicting version of %d charts: %s"
+		// } else {
+		// 	errorMessageFormat = "[%s]"
+		// }
+		return fmt.Errorf(fmt.Sprintf("Conflicting version of %d chart(s): %s", len(errorMessages), strings.Join(errorMessages, " ")))
 	}
 
 	return nil
@@ -220,6 +228,6 @@ func formatDepVersionMap(depName string, depVersionMap map[string][]*chart.Chart
 		depVersionMessages = append(depVersionMessages, fmt.Sprintf("%s in [%s]", key, strings.Join(chartPaths, ", ")))
 	}
 
-	return strings.Join(depVersionMessages, ", ")
+	return strings.Join(depVersionMessages, " and ")
 
 }
